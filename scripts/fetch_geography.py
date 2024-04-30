@@ -113,101 +113,7 @@ GEO_MAP_2010 = {
     'RESERVED': (483, 501),
 }
 
-# Our zip downloads have URLs that can be recreated with state/arrevs.
-# STATES = {
-#     'AL': 'Alabama',
-#     'AK': 'Alaska',
-#     'AZ': 'Arizona',
-#     'AR': 'Arkansas',
-#     'CA': 'California',
-#     'CO': 'Colorado',
-#     'CT': 'Connecticut',
-#     'DE': 'Delaware',
-#     'DC': 'District_of_Columbia',
-#     'FL': 'Florida',
-#     'GA': 'Georgia',
-#     'HI': 'Hawaii',
-#     'ID': 'Idaho',
-#     'IL': 'Illinois',
-#     'IN': 'Indiana',
-#     'IA': 'Iowa',
-#     'KS': 'Kansas',
-#     'KY': 'Kentucky',
-#     'LA': 'Louisiana',
-#     'ME': 'Maine',
-#     'MD': 'Maryland',
-#     'MA': 'Massachusetts',
-#     'MI': 'Michigan',
-#     'MN': 'Minnesota',
-#     'MS': 'Mississippi',
-#     'MO': 'Missouri',
-#     'MT': 'Montana',
-#     'NE': 'Nebraska',
-#     'NV': 'Nevada',
-#     'NH': 'New_Hampshire',
-#     'NJ': 'New_Jersey',
-#     'NM': 'New_Mexico',
-#     'NY': 'New_York',
-#     'NC': 'North_Carolina',
-#     'ND': 'North_Dakota',
-#     'OH': 'Ohio',
-#     'OK': 'Oklahoma',
-#     'OR': 'Oregon',
-#     'PA': 'Pennsylvania',
-#     'PR': 'Puerto_Rico',
-#     'RI': 'Rhode_Island',
-#     'SC': 'South_Carolina',
-#     'SD': 'South_Dakota',
-#     'TN': 'Tennessee',
-#     'TX': 'Texas',
-#     'UT': 'Utah',
-#     'VT': 'Vermont',
-#     'VA': 'Virginia',
-#     'WA': 'Washington',
-#     'WV': 'West_Virginia',
-#     'WI': 'Wisconsin',
-#     'WY': 'Wyoming',    
-# }
-
-# This is the template for the URLs
-# URL_TEMPLATE_ZIP = 'https://www2.census.gov/census_2010/04-Summary_File_1/{state}/{state_abbrev}2010.sf1.zip'
-
 TEMP_DIR = pathlib.Path(tempfile.gettempdir()) / 'surgeo_temp'
-# TEMP_DIR.mkdir(exist_ok=True)
-
-# This creates a URL with each and every state in the STATES dictioanry
-# urls = [
-#     URL_TEMPLATE_ZIP.format(state_abbrev=code.lower(), state=name)
-#     for code, name
-#     in STATES.items()
-# ]
-
-# def request_data(url, retries):
-#     '''Helper that attempts to get file a number of times'''
-#     tries = 0
-#     while True:
-#         try:
-#             with urllib.request.urlopen(url) as r:
-#                 data = r.read()
-#                 return data
-#         except Exception:
-#             tries += 1
-#             if tries >= retries:
-#                 raise
-#         print('Retrying {url}...'.format(url))
-
-# def dl_file(url, file_path):
-#     '''Helper func: downloads zip from URL and stores it in local folder'''
-#     # If it exsits do nothing
-#     if file_path.exists():
-#         print('{} is already present. Processing ...'.format(file_path))
-#         pass
-#     # Otherwise download file to dir
-#     else:
-#     # Open request
-#         data = request_data(url, 3)
-#         file_path.touch()
-#         file_path.write_bytes(data)
 
 def make_geo_df(file_path, geo_level="ZCTA"):
     '''Helper func: takes zip and creates a geographic file from data'''
@@ -234,7 +140,6 @@ def make_geo_df(file_path, geo_level="ZCTA"):
     # Give names to columns
     geo_df.columns = tuple(GEO_MAP_2010.keys())
     # Filter out all records that are not related to ZCTAs only
-    # e.g. get rid of census block data
 
     # Reference:
     # https://blog.cubitplanning.com/2011/03/census-summary-level-sumlev/
@@ -244,13 +149,13 @@ def make_geo_df(file_path, geo_level="ZCTA"):
     if geo_level== "ZCTA":
         geo_df = geo_df.loc[geo_df.SUMLEV == '871']
         # Keep the STUSAB (state), LOGRECONO (join key), and ZCTA5 (zip code proxy)
-        geo_df = geo_df[['STUSAB', 'LOGRECNO', 'ZCTA5']]#.dropna(subset=['ZCTA5'])
+        geo_df = geo_df[['STUSAB', 'LOGRECNO', 'ZCTA5']]
     elif geo_level == 'TRACT':
         geo_df = geo_df.loc[geo_df.SUMLEV == '140']
-        geo_df = geo_df[['STUSAB', 'LOGRECNO', 'TRACT', 'STATE', 'COUNTY']]#.dropna(subset=['ZCTA5'])
+        geo_df = geo_df[['STUSAB', 'LOGRECNO', 'TRACT', 'STATE', 'COUNTY']]
     elif geo_level == 'BLOCK':
         geo_df = geo_df.loc[geo_df.SUMLEV == '101']
-        geo_df = geo_df[['STUSAB', 'LOGRECNO', 'ZCTA5', 'BLKGRP', 'BLOCK']]#.dropna(subset=['ZCTA5'])
+        geo_df = geo_df[['STUSAB', 'LOGRECNO', 'STATE', 'COUNTY', 'BLOCK']]
     return geo_df
 
 def make_pop_df(file_path ):
@@ -294,6 +199,11 @@ def merge_frames(geo_df, pop_df, geo_level="ZCTA"):
         merged = merged.rename(columns={'TRACT': 'tract', 'STATE':'state', 'COUNTY':'county'})
         merged = merged.set_index(["state","county","tract"])
         merged = merged.sort_index()
+    elif geo_level=='BLOCK': 
+        merged = merged.rename(columns={'BLOCK': 'block', 'STATE':'state', 'COUNTY':'county'})
+        merged = merged.set_index(["state","county","block"])
+        # merged.drop(columns=['BLKGRP'], inplace=True) # We are not using the block group currently.
+        merged = merged.sort_index()
     else:
         merged = merged.rename(columns={'ZCTA5': 'zcta5'})
         # Set index to ZCTA5 and sort
@@ -304,15 +214,6 @@ def merge_frames(geo_df, pop_df, geo_level="ZCTA"):
 def create_df(file_path, geo_level="ZCTA"):
     '''Main function to download, join, and clean data for single state'''
     
-    # file_name = url.rpartition('/')[2]
-    # file_path = temp_dir / file_name 
-    # # Download
-    # if not file_path.exists():
-    #     print(url)
-    #     data   = dl_file(url, file_path)
-    # else:
-    #     print(file_name, " Exists and Cached")
-    # Make dfs
     geo_df = make_geo_df(file_path, geo_level)
     pop_df = make_pop_df(file_path)
     # Join DFs, sort, trip, and process
@@ -321,144 +222,22 @@ def create_df(file_path, geo_level="ZCTA"):
     df = df.astype(np.float64)
     return df
 
-# def main2() -> None:
-
-
-#     # Join all data into single dataframe and sort index
-#     df = pd.concat(data_zcta)
-#     df.sort_index(inplace=True)
-
-#     # https://github.com/theonaunheim/surgeo/issues/10
-#     # Certain zctas cross state lines and must be added together.
-#     df = df.groupby(df.index).apply(sum)
-
-#     # Store column totals
-#     totals = df.sum(axis=1)
-
-#     # Store some other race so it can be divvyed up among other groups
-#     other = df['other']
-
-#     # Create Asian or Pacific Islander (this is what surname uses)
-#     df['api'] = df['asian'] + df['pi']
-
-#     # Drop columns we will no longer use
-#     df = df.drop(columns=['other', 'asian', 'pi'])
-
-#     # Now determine what percent of the row each items makes up.
-#     percentages = df.divide(totals, axis='rows')
-
-#     # Split up 'other' into the remaining rows based on the percents above
-#     apportioned_other = percentages.multiply(other, axis='rows')
-
-#     # Impute 'other' to the remaining groups based on percentage makeup
-#     # quasi Iterative proportortional fit / matrix rake over single dimension
-#     df += apportioned_other
-
-#     # Reconvert to percentage
-#     column_totals = df.sum(axis=0)
-#     ratio_by_column = df.divide(column_totals, axis='columns').copy()
-
-#     # Reorder columns
-#     ratio_by_column = ratio_by_column[[
-#         'white',
-#         'black',
-#         'api',
-#         'native',
-#         'multiple',
-#         'hispanic'
-#     ]]
-
-#     # Reconvert to percentage
-#     row_totals = df.sum(axis=1)
-#     ratio_by_row = df.divide(row_totals, axis='index').copy()
-
-#     # Reorder columns
-#     ratio_by_row = ratio_by_row[[
-#         'white',
-#         'black',
-#         'api',
-#         'native',
-#         'multiple',
-#         'hispanic'
-#     ]]
-
-#     data_zcta = []
-#     print("Gather the Tract Information")
-#     data_tract = [
-#         create_df(url, TEMP_DIR, "TRACT")
-#         for url
-#         in urls
-#     ]
-
-#     # REPEAT CALCULATION FOR TRACT LEVEL IF NEEDED
-
-#     # Join all data into single dataframe and sort index
-#     df_tract = pd.concat(data_tract)
-#     df_tract = df_tract.sort_index()
-
-#     # Store column totals
-#     totals_tract = df_tract.sum(axis=1)
-#     display(totals_tract.count())
-
-
-#     other = df_tract['other']
-#     df_tract['api'] = df_tract['asian'] + df_tract['pi']
-#     df_tract = df_tract.drop(columns=['other', 'asian', 'pi'])
-#     percentages = df_tract.divide(totals_tract, axis='rows')
-#     apportioned_other = percentages.multiply(other, axis='rows')
-#     df_tract += apportioned_other
-
-#     display(df_tract.count())
-
-#     column_totals = df_tract.sum(axis=0)
-#     ratio_by_column_tract = df_tract.divide(column_totals, axis='columns').copy()
-
-#     ratio_by_column_tract = ratio_by_column_tract[[
-#         'white',
-#         'black',
-#         'api',
-#         'native',
-#         'multiple',
-#         'hispanic'
-#     ]]
-
-#     row_totals = df_tract.sum(axis=1)
-#     ratio_by_row_tract = df_tract.divide(row_totals, axis='index').copy()
-
-#     ratio_by_row_tract = ratio_by_row_tract[[
-#         'white',
-#         'black',
-#         'api',
-#         'native',
-#         'multiple',
-#         'hispanic'
-#     ]]
-
-#     ratio_by_row_tract.sort_index().head()
-
-#     # WRITE DATA TO MODULE AS CSV
-
-def main():
-
-    from glob import glob
-
-    # print(TEMP_DIR)
-
-    ls_temp = glob(f'{TEMP_DIR}/*.zip')
-
-    df_list = []
-    for fp in ls_temp[:4]:
+def run_zcta(filepath_list:list[str]) -> None: 
+    '''
+    Runs the zipcode summary level of calculations.
+    '''
+    
+    data_zcta = []
+    for fp in filepath_list:
         try: 
             print(f'Processing {fp} ....')
-            df_list.append(create_df(fp, geo_level='BLOCK'))
+            data_zcta.append(create_df(fp, geo_level='ZCTA'))
         except :
             print("A problem occurred.")
 
     # Join all data into single dataframe and sort index
-    df = pd.concat(df_list)
+    df = pd.concat(data_zcta)
     df = df.sort_index()
-
-    # print(df.head())
 
     # https://github.com/theonaunheim/surgeo/issues/10
     # Certain zctas cross state lines and must be added together.
@@ -514,29 +293,148 @@ def main():
         'hispanic'
     ]]
 
-    # WRITE DATA TO MODULE AS CSV
+    write_files(ratio_by_column, ratio_by_row, 'prob_zcta_given_race_2010.csv', 'prob_race_given_zcta_2010.csv')
 
+    # current_directory = pathlib.Path().cwd()
+    # project_directory = current_directory.parents[0]
+    # data_directory    = project_directory / 'surgeo' / 'data'
+
+    # # Prob zcta given race
+    # rbc_path = data_directory / 'prob_zcta_given_race_2010.csv'
+    # ratio_by_column.to_csv(rbc_path)
+
+    # # Prob race given block zcta
+    # rbr_path = data_directory / 'prob_race_given_zcta_2010.csv'
+    # ratio_by_row.to_csv(rbr_path)
+
+def run_tract(filepath_list:list[str]) -> None: 
+    '''
+    Runs the tract-level summary of calculations.
+    '''
+    
+    data_tract = []
+    for fp in filepath_list:
+        try: 
+            print(f'Processing {fp} ....')
+            data_tract.append(create_df(fp, geo_level='TRACT'))
+        except :
+            print("A problem occurred.")
+
+    # Join all data into single dataframe and sort index
+    df_tract = pd.concat(data_tract)
+    df_tract = df_tract.sort_index()
+
+    # Store column totals
+    totals_tract = df_tract.sum(axis=1)
+    # display(totals_tract.count())
+
+
+    other = df_tract['other']
+    df_tract['api'] = df_tract['asian'] + df_tract['pi']
+    df_tract = df_tract.drop(columns=['other', 'asian', 'pi'])
+    percentages = df_tract.divide(totals_tract, axis='rows')
+    apportioned_other = percentages.multiply(other, axis='rows')
+    df_tract += apportioned_other
+
+    # display(df_tract.count())
+
+    column_totals = df_tract.sum(axis=0)
+    ratio_by_column_tract = df_tract.divide(column_totals, axis='columns').copy()
+
+    ratio_by_column_tract = ratio_by_column_tract[[
+        'white',
+        'black',
+        'api',
+        'native',
+        'multiple',
+        'hispanic'
+    ]]
+
+    row_totals = df_tract.sum(axis=1)
+    ratio_by_row_tract = df_tract.divide(row_totals, axis='index').copy()
+
+    ratio_by_row_tract = ratio_by_row_tract[[
+        'white',
+        'black',
+        'api',
+        'native',
+        'multiple',
+        'hispanic'
+    ]]
+
+    ratio_by_row_tract.sort_index().head()
+
+    write_files(ratio_by_column_tract, ratio_by_row_tract, 'prob_tract_given_race_2010.csv', 'prob_race_given_tract_2010.csv')
+
+
+def run_block(filepath_list:list[str]) -> None: 
+    '''
+    Runs the summary calculations for the census block level data.
+    '''
+    
+    data_block = []
+    for fp in filepath_list:
+        try: 
+            print(f'Processing {fp} ....')
+            data_block.append(create_df(fp, geo_level='BLOCK'))
+        except Exception as e:
+            print(e)
+            # print("A problem occurred.")
+
+    # Join all data into single dataframe and sort index
+    data_block = pd.concat(data_block)
+    data_block = data_block.sort_index()
+
+    # Store column totals
+    totals_tract = data_block.sum(axis=1)
+
+    other = data_block['other']
+    data_block['api'] = data_block['asian'] + data_block['pi']
+    data_block = data_block.drop(columns=['other', 'asian', 'pi'])
+    percentages = data_block.divide(totals_tract, axis='rows')
+    apportioned_other = percentages.multiply(other, axis='rows')
+    data_block += apportioned_other
+
+    column_totals = data_block.sum(axis=0)
+    ratio_by_column_block = data_block.divide(column_totals, axis='columns').copy()
+
+    ratio_by_column_block = ratio_by_column_block[[
+        'white',
+        'black',
+        'api',
+        'native',
+        'multiple',
+        'hispanic'
+    ]]
+
+    row_totals = data_block.sum(axis=1)
+    ratio_by_row_block = data_block.divide(row_totals, axis='index').copy()
+
+    ratio_by_row_block = ratio_by_row_block[[
+        'white',
+        'black',
+        'api',
+        'native',
+        'multiple',
+        'hispanic'
+    ]]
+
+    write_files(ratio_by_column_block, ratio_by_row_block, 'prob_block_given_race_2010.csv', 'prob_race_given_block_2010.csv')
+
+def write_files(ratio_by_column, ratio_by_row, rbc_filename, rbr_filename):
     current_directory = pathlib.Path().cwd()
     project_directory = current_directory.parents[0]
     data_directory    = project_directory / 'surgeo' / 'data'
 
     # Prob zcta given race
-    rbc_path = data_directory / 'prob_zcta_given_race_2010.csv'
+    rbc_path = data_directory / rbc_filename
     ratio_by_column.to_csv(rbc_path)
 
     # Prob race given block zcta
-    rbr_path = data_directory / 'prob_race_given_zcta_2010.csv'
+    rbr_path = data_directory / rbr_filename
     ratio_by_row.to_csv(rbr_path)
 
-    # Prob zcta given race tract
-    rbc_path = data_directory / 'prob_tract_given_race_2010.csv'
-    ratio_by_column_tract.to_csv(rbc_path)
-
-    # Prob race given block tract
-    rbr_path = data_directory / 'prob_race_given_tract_2010.csv'
-    ratio_by_row_tract.to_csv(rbr_path)
-
-    # CLEAN UP TEMP_DIR
+def cleanup_temp_files():
 
     # Delete files
     for path in TEMP_DIR.rglob('*'):
@@ -544,6 +442,33 @@ def main():
 
     # Delete dir
     TEMP_DIR.rmdir()
+
+def main():
+
+    from glob import glob
+
+    TEMP_DIR = pathlib.Path(tempfile.gettempdir()) / 'surgeo_temp'
+
+    ls_temp = glob(f'{TEMP_DIR}/*.zip')
+
+    # run_zcta(ls_temp[1:3])
+    # run_tract(ls_temp[1:3])
+    run_block(ls_temp[1:3])
+    
+    # WRITE DATA TO MODULE AS CSV
+
+    # current_directory = pathlib.Path().cwd()
+    # project_directory = current_directory.parents[0]
+    # data_directory    = project_directory / 'surgeo' / 'data'
+
+    # # Prob block given race tract
+    # rbc_path = data_directory / 'prob_block_given_race_2010.csv'
+    # ratio_by_column_block.to_csv(rbc_path)
+
+    # # Prob race given block
+    # rbr_path = data_directory / 'prob_race_given_block_2010.csv'
+    # ratio_by_row_block.to_csv(rbr_path)
+
 
 if __name__ == '__main__':
     main()

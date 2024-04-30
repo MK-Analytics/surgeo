@@ -210,22 +210,6 @@ def dl_file(url:str, file_path:str) -> None:
         file_path.write_bytes(data)
 
     return None
-
-def merge_frames(geo_df:pd.DataFrame, pop_df:pd.DataFrame, geo_level="ZCTA") -> pd.DataFrame:
-    '''Merges our GEO and POP frames'''
-    # Merges common STUSAB and LOGRECNO fields
-    merged = geo_df.merge(pop_df)
-    # Rename zctq5
-    if geo_level=='TRACT':
-        merged = merged.rename(columns={'TRACT': 'tract', 'STATE':'state', 'COUNTY':'county'})
-        merged = merged.set_index(["state","county","tract"])
-        merged = merged.sort_index()
-    else:
-        merged = merged.rename(columns={'ZCTA5': 'zcta5'})
-        # Set index to ZCTA5 and sort
-        merged = merged.set_index('zcta5')
-        merged = merged.sort_index()
-    return merged
     
 def create_df(url:str, temp_dir, geo_level="ZCTA") -> None:
     '''Main function to download, join, and clean data for single state'''
