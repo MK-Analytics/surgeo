@@ -66,7 +66,7 @@ class BaseModel(object):
         fn = self._package_root / 'data' / filename
 
         import pickle
-        with open(fn, 'rb') as f: 
+        with open(f'{self._DATA_DIR}{filename}', 'rb') as f: 
             prob_race_given_zcta = pickle.load(f)
 
         return prob_race_given_zcta
@@ -74,33 +74,22 @@ class BaseModel(object):
 
 
     def _get_prob_race_given_zcta(self):
-        """Create dataframe of race probs given ZCTA (for Geo)"""
-        # prob_race_given_zcta = pd.read_csv(
-        #     self._package_root / 'data' / 'prob_race_given_zcta_2010.csv',
-        #     index_col='zcta5',
-        #     na_values=[''],
-        #     keep_default_na=False,
-        # )
+        """
+        Create dataframe of race probs given ZCTA (for Geo)
+        This method should be deprecated in favor of load_pickle.        
+        """
 
         import pickle
         with open(f'{self._package_root}/data/prob_race_given_zcta_2010.pkl', 'rb') as f: 
             prob_race_given_zcta = pickle.load(f)
 
-        # Convert geocode zip codes to 00000-formatted strings
-        # prob_race_given_zcta.index = (
-        #     prob_race_given_zcta.index.astype('str')
-        #                         .str.zfill(5)
-        # )
         return prob_race_given_zcta
     
     def _get_prob_tract_given_race(self): 
-        """Create dataframe of race probs given TRACT (for Geo)"""
-        # prob_race_given_tract = pd.read_csv(
-        #     self._package_root / 'data' / 'prob_race_given_tract_2010.csv',
-        #     # index_col='zcta5',
-        #     na_values=[''],
-        #     keep_default_na=False,
-        # )
+        """
+        Create dataframe of race probs given TRACT (for Geo)
+        This method should be deprecated in favor of load_pickle.       
+        """
 
         import pickle
         with open(f'{self._package_root}/data/prob_race_given_tract_2010.pkl', 'rb') as f: 
@@ -109,13 +98,10 @@ class BaseModel(object):
         return prob_race_given_tract
 
     def _get_prob_block_given_race(self): 
-        """Create dataframe of race probs given census BLOCK (for Geo)"""
-        # prob_race_given_block = pd.read_csv(
-        #     self._package_root / 'data' / 'prob_race_given_block_2010.csv',
-        #     # index_col='zcta5',
-        #     na_values=[''],
-        #     keep_default_na=False,
-        # )
+        """
+        Create dataframe of race probs given census BLOCK (for Geo)
+        This method should be deprecated in favor of load_pickle.
+        """
 
         import pickle
         with open(f'{self._package_root}/data/prob_race_given_block_2010.pkl', 'rb') as f: 

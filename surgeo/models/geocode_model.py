@@ -72,7 +72,7 @@ class GeocodeModel(BaseModel):
         Parameters
         ----------
         geo_df : pd.DataFrame
-            DF of ['state','county','tract'] codes to retrun probabilities for
+            DF of ['state','county','tract'] codes to return probabilities for
 
         Return
         ------
