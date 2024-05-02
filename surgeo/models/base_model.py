@@ -13,7 +13,7 @@ class BaseModel(object):
     surname-geocode models.
 
     Class creation is greatly simplified by placing most of the
-    funcionality wihtin a single base class and leaving only small areas
+    funcionality within a single base class and leaving only small areas
     of responsibility for the subclass. This base class does the following
     operations:
 
@@ -68,6 +68,30 @@ class BaseModel(object):
                                 .str.zfill(5)
         )
         return prob_race_given_zcta
+    
+    def _get_prob_tract_given_race(self): 
+        """Create dataframe of race probs given TRACT (for Geo)"""
+        prob_race_given_tract = pd.read_csv(
+            self._package_root / 'data' / 'prob_race_given_tract_2010.csv',
+            # index_col='zcta5',
+            na_values=[''],
+            keep_default_na=False,
+        )
+
+        return prob_race_given_tract
+
+    def _get_prob_block_given_race(self): 
+        """Create dataframe of race probs given census BLOCK (for Geo)"""
+        prob_race_given_block = pd.read_csv(
+            self._package_root / 'data' / 'prob_race_given_block_2010.csv',
+            # index_col='zcta5',
+            na_values=[''],
+            keep_default_na=False,
+        )
+
+        prob_race_given_block.drop_duplicates()
+
+        return prob_race_given_block
         
     def _get_prob_race_given_tract(self):
         prob_race_given_tract = pd.read_csv(
@@ -158,6 +182,6 @@ class BaseModel(object):
         return zfilled
 
     def _normalize_tracts(self, geo_target_df: pd.DataFrame) -> pd.DataFrame:
-        """Transform rename the columns to standard into standardized strings"""
+        """Transform rename the columns into standardized strings"""
         converted = geo_target_df.rename(columns={old_col:new_col for old_col, new_col in zip(geo_target_df.columns, ['state','county','tract'])})
         return converted

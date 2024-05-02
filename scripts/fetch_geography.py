@@ -152,10 +152,10 @@ def make_geo_df(file_path, geo_level="ZCTA"):
         geo_df = geo_df[['STUSAB', 'LOGRECNO', 'ZCTA5']]
     elif geo_level == 'TRACT':
         geo_df = geo_df.loc[geo_df.SUMLEV == '140']
-        geo_df = geo_df[['STUSAB', 'LOGRECNO', 'TRACT', 'STATE', 'COUNTY']]
+        geo_df = geo_df[['STUSAB', 'LOGRECNO', 'STATE', 'COUNTY', 'TRACT']]
     elif geo_level == 'BLOCK':
         geo_df = geo_df.loc[geo_df.SUMLEV == '101']
-        geo_df = geo_df[['STUSAB', 'LOGRECNO', 'STATE', 'COUNTY', 'BLOCK']]
+        geo_df = geo_df[['STUSAB', 'LOGRECNO', 'STATE', 'COUNTY', 'TRACT', 'BLOCK']]
     return geo_df
 
 def make_pop_df(file_path ):
@@ -197,12 +197,30 @@ def merge_frames(geo_df, pop_df, geo_level="ZCTA"):
     # Rename zctq5
     if geo_level=='TRACT':
         merged = merged.rename(columns={'TRACT': 'tract', 'STATE':'state', 'COUNTY':'county'})
-        merged = merged.set_index(["state","county","tract"])
+
+        # Collapse state, county, tract to a single string id. Set index to that ID. 
+        merged['state'] = merged.state.apply(lambda x: str(x).zfill(2))
+        merged['county'] = merged.county.apply(lambda x: str(x).zfill(3))
+        merged['tract'] = merged.tract.apply(lambda x: str(x).zfill(6))
+
+        merged['tract'] = merged.apply(lambda x: f'{x.state}{x.county}{x.tract}', axis = 1)
+
+        merged = merged.set_index('tract')
+        merged.drop(columns=['state', 'county'], inplace=True)
         merged = merged.sort_index()
     elif geo_level=='BLOCK': 
-        merged = merged.rename(columns={'BLOCK': 'block', 'STATE':'state', 'COUNTY':'county'})
-        merged = merged.set_index(["state","county","block"])
-        # merged.drop(columns=['BLKGRP'], inplace=True) # We are not using the block group currently.
+        merged = merged.rename(columns={'BLOCK': 'block', 'STATE':'state', 'COUNTY':'county', 'TRACT': 'tract'})
+
+        # Collapse state, county, tract, and block to a single string ID. Set index to that ID.
+        merged['state'] = merged.state.apply(lambda x: str(x).zfill(2))
+        merged['county'] = merged.county.apply(lambda x: str(x).zfill(3))
+        merged['tract'] = merged.tract.apply(lambda x: str(x).zfill(6))
+        merged['block'] = merged.block.apply(lambda x: str(x).zfill(4))
+
+        merged['block'] = merged.apply(lambda x: f'{x.state}{x.county}{x.tract}{x.block}', axis = 1)
+
+        merged = merged.set_index('block')
+        merged.drop(columns=['state', 'county', 'tract'], inplace=True)
         merged = merged.sort_index()
     else:
         merged = merged.rename(columns={'ZCTA5': 'zcta5'})
@@ -226,11 +244,15 @@ def run_zcta(filepath_list:list[str]) -> None:
     '''
     Runs the zipcode summary level of calculations.
     '''
+
+    from tqdm import tqdm
+
+    print("Processing data for zipcode-level summary:")
     
     data_zcta = []
-    for fp in filepath_list:
+    for fp in tqdm(filepath_list):
         try: 
-            print(f'Processing {fp} ....')
+            # print(f'Processing {fp} ....')
             data_zcta.append(create_df(fp, geo_level='ZCTA'))
         except :
             print("A problem occurred.")
@@ -293,29 +315,23 @@ def run_zcta(filepath_list:list[str]) -> None:
         'hispanic'
     ]]
 
-    write_files(ratio_by_column, ratio_by_row, 'prob_zcta_given_race_2010.csv', 'prob_race_given_zcta_2010.csv')
+    write_files(ratio_by_column, ratio_by_row, 'prob_zcta_given_race_2010.pkl', 'prob_race_given_zcta_2010.pkl')
 
-    # current_directory = pathlib.Path().cwd()
-    # project_directory = current_directory.parents[0]
-    # data_directory    = project_directory / 'surgeo' / 'data'
-
-    # # Prob zcta given race
-    # rbc_path = data_directory / 'prob_zcta_given_race_2010.csv'
-    # ratio_by_column.to_csv(rbc_path)
-
-    # # Prob race given block zcta
-    # rbr_path = data_directory / 'prob_race_given_zcta_2010.csv'
-    # ratio_by_row.to_csv(rbr_path)
 
 def run_tract(filepath_list:list[str]) -> None: 
     '''
     Runs the tract-level summary of calculations.
     '''
+
+    from tqdm import tqdm
+
+    print("Processing data for tract-level summary")
+
     
     data_tract = []
-    for fp in filepath_list:
+    for fp in tqdm(filepath_list):
         try: 
-            print(f'Processing {fp} ....')
+            # print(f'Processing {fp} ....')
             data_tract.append(create_df(fp, geo_level='TRACT'))
         except :
             print("A problem occurred.")
@@ -364,18 +380,22 @@ def run_tract(filepath_list:list[str]) -> None:
 
     ratio_by_row_tract.sort_index().head()
 
-    write_files(ratio_by_column_tract, ratio_by_row_tract, 'prob_tract_given_race_2010.csv', 'prob_race_given_tract_2010.csv')
+    write_files(ratio_by_column_tract, ratio_by_row_tract, 'prob_tract_given_race_2010.pkl', 'prob_race_given_tract_2010.pkl', mode='pickle')
 
 
 def run_block(filepath_list:list[str]) -> None: 
     '''
     Runs the summary calculations for the census block level data.
     '''
+
+    from tqdm import tqdm
     
+    print("Processing data for block-level summary")
+
     data_block = []
-    for fp in filepath_list:
+    for fp in tqdm(filepath_list):
         try: 
-            print(f'Processing {fp} ....')
+            # print(f'Processing {fp} ....')
             data_block.append(create_df(fp, geo_level='BLOCK'))
         except Exception as e:
             print(e)
@@ -419,20 +439,30 @@ def run_block(filepath_list:list[str]) -> None:
         'hispanic'
     ]]
 
-    write_files(ratio_by_column_block, ratio_by_row_block, 'prob_block_given_race_2010.csv', 'prob_race_given_block_2010.csv')
+    write_files(ratio_by_column_block, ratio_by_row_block, 'prob_block_given_race_2010.pkl', 'prob_race_given_block_2010.pkl', mode='pickle')
 
-def write_files(ratio_by_column, ratio_by_row, rbc_filename, rbr_filename):
+def write_files(ratio_by_column, ratio_by_row, rbc_filename, rbr_filename, mode='pickle'):
     current_directory = pathlib.Path().cwd()
     project_directory = current_directory.parents[0]
     data_directory    = project_directory / 'surgeo' / 'data'
 
-    # Prob zcta given race
+    # Prob location given race
     rbc_path = data_directory / rbc_filename
-    ratio_by_column.to_csv(rbc_path)
 
-    # Prob race given block zcta
+    # Prob race given location
     rbr_path = data_directory / rbr_filename
-    ratio_by_row.to_csv(rbr_path)
+    
+    if mode == 'csv':
+        ratio_by_column.to_csv(rbc_path)
+        ratio_by_row.to_csv(rbr_path)
+    elif mode == 'pickle':
+        import pickle
+        with open(rbc_path, 'wb') as f: 
+            pickle.dump(ratio_by_column, f)
+        with open(rbr_path, 'wb') as f: 
+            pickle.dump(ratio_by_row, f)
+    else: 
+        raise Exception("Mode is not recognized. Choose 'csv' or 'pickle'")
 
 def cleanup_temp_files():
 
@@ -451,24 +481,13 @@ def main():
 
     ls_temp = glob(f'{TEMP_DIR}/*.zip')
 
-    # run_zcta(ls_temp[1:3])
-    # run_tract(ls_temp[1:3])
-    run_block(ls_temp[1:3])
+    run_zcta(ls_temp)
+    run_tract(ls_temp)
+    run_block(ls_temp)
+
+    # Remove the raw zipped data files
+    # cleanup_temp_files()
     
-    # WRITE DATA TO MODULE AS CSV
-
-    # current_directory = pathlib.Path().cwd()
-    # project_directory = current_directory.parents[0]
-    # data_directory    = project_directory / 'surgeo' / 'data'
-
-    # # Prob block given race tract
-    # rbc_path = data_directory / 'prob_block_given_race_2010.csv'
-    # ratio_by_column_block.to_csv(rbc_path)
-
-    # # Prob race given block
-    # rbr_path = data_directory / 'prob_race_given_block_2010.csv'
-    # ratio_by_row_block.to_csv(rbr_path)
-
 
 if __name__ == '__main__':
     main()

@@ -79,11 +79,25 @@ class BIFSGModel(BaseModel):
         `<https://www.tandfonline.com/doi/full/10.1080/2330443X.2018.1427012>`_
 
     """
-    def __init__(self):
+    def __init__(self, geo_level = 'ZCTA'):
         super().__init__()
-        self._PROB_ZCTA_GIVEN_RACE = self._get_prob_zcta_given_race()
+
+        GEO_LEVEL_MAP = {
+            'ZCTA': self._get_prob_zcta_given_race,
+            'TRACT': self._get_prob_tract_given_race,
+            'BLOCK': self._get_prob_block_given_race
+        }
+
+        if geo_level in GEO_LEVEL_MAP:
+            self._GEO_LEVEL = geo_level
+        else: 
+            raise Exception("geo_level parameter must be 'ZCTA', 'TRACT', 'BLOCK'")
+
+        # self._PROB_ZCTA_GIVEN_RACE = self._get_prob_zcta_given_race()
         self._PROB_RACE_GIVEN_SURNAME = self._get_prob_race_given_surname()
         self._PROB_FIRST_NAME_GIVEN_RACE = self._get_prob_first_name_given_race()
+
+        self._PROB_LOC_GIVEN_RACE = GEO_LEVEL_MAP[geo_level]()
 
     def get_probabilities(self, first_names, surnames, zctas):
         """Obtain a set of BIFSG probabilities for first_name/surname/ZCTA
@@ -227,7 +241,7 @@ class BIFSGModel(BaseModel):
         )
         # Merge names to dataframe, which gives probs for each name.
         geocode_probs = normalized_zctas.merge(
-            self._PROB_ZCTA_GIVEN_RACE,
+            self._PROB_LOC_GIVEN_RACE,
             left_on='zcta5',
             right_index=True,
             how='left',
