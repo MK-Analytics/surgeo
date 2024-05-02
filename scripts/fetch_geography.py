@@ -115,7 +115,7 @@ GEO_MAP_2010 = {
 
 TEMP_DIR = pathlib.Path(tempfile.gettempdir()) / 'surgeo_temp'
 
-def make_geo_df(file_path, geo_level="ZCTA"):
+def make_geo_df(file_path:str, geo_level="ZCTA") -> pd.DataFrame:
     '''Helper func: takes zip and creates a geographic file from data'''
     # Read zip data
     with zipfile.ZipFile(file_path) as zf:
@@ -158,7 +158,7 @@ def make_geo_df(file_path, geo_level="ZCTA"):
         geo_df = geo_df[['STUSAB', 'LOGRECNO', 'STATE', 'COUNTY', 'TRACT', 'BLOCK']]
     return geo_df
 
-def make_pop_df(file_path ):
+def make_pop_df(file_path:str) -> pd.DataFrame:
     '''Helper func: Takes a zip and creates population df'''
     # Read zip data
     with zipfile.ZipFile(file_path) as zf:
@@ -190,7 +190,7 @@ def make_pop_df(file_path ):
         ]
         return pop_df
 
-def merge_frames(geo_df, pop_df, geo_level="ZCTA"):
+def merge_frames(geo_df:pd.DataFrame, pop_df:pd.DataFrame, geo_level="ZCTA") -> pd.DataFrame:
     '''Merges our GEO and POP frames'''
     # Merges common STUSAB and LOGRECNO fields
     merged = geo_df.merge(pop_df)
@@ -229,7 +229,7 @@ def merge_frames(geo_df, pop_df, geo_level="ZCTA"):
         merged = merged.sort_index()
     return merged
     
-def create_df(file_path, geo_level="ZCTA"):
+def create_df(file_path:str, geo_level="ZCTA") -> pd.DataFrame:
     '''Main function to download, join, and clean data for single state'''
     
     geo_df = make_geo_df(file_path, geo_level)
@@ -441,10 +441,14 @@ def run_block(filepath_list:list[str]) -> None:
 
     write_files(ratio_by_column_block, ratio_by_row_block, 'prob_block_given_race_2010.pkl', 'prob_race_given_block_2010.pkl', mode='pickle')
 
-def write_files(ratio_by_column, ratio_by_row, rbc_filename, rbr_filename, mode='pickle'):
+def write_files(ratio_by_column:pd.DataFrame, ratio_by_row:pd.DataFrame, rbc_filename:str, rbr_filename:str, mode='pickle') -> None:
     current_directory = pathlib.Path().cwd()
     project_directory = current_directory.parents[0]
     data_directory    = project_directory / 'surgeo' / 'data'
+
+    # For efficiency of data storage and performance, drop all data for which there are no known probabilities.
+    ratio_by_column.dropna(subset=['white', 'black', 'api', 'multiple', 'hispanic'], inplace=True)
+    ratio_by_row.dropna(subset=['white', 'black', 'api', 'multiple', 'hispanic'], inplace=True)
 
     # Prob location given race
     rbc_path = data_directory / rbc_filename
@@ -473,7 +477,7 @@ def cleanup_temp_files():
     # Delete dir
     TEMP_DIR.rmdir()
 
-def main():
+def main() -> None:
 
     from glob import glob
 
@@ -481,8 +485,8 @@ def main():
 
     ls_temp = glob(f'{TEMP_DIR}/*.zip')
 
-    run_zcta(ls_temp)
-    run_tract(ls_temp)
+    # run_zcta(ls_temp)
+    # run_tract(ls_temp)
     run_block(ls_temp)
 
     # Remove the raw zipped data files

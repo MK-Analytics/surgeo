@@ -83,9 +83,9 @@ class BIFSGModel(BaseModel):
         super().__init__()
 
         GEO_LEVEL_MAP = {
-            'ZCTA': self._get_prob_zcta_given_race,
-            'TRACT': self._get_prob_tract_given_race,
-            'BLOCK': self._get_prob_block_given_race
+            'ZCTA': 'prob_zcta_given_race_2010.pkl',
+            'TRACT': 'prob_tract_given_race_2010.pkl',
+            'BLOCK': 'prob_block_given_race_2010.pkl'
         }
 
         if geo_level in GEO_LEVEL_MAP:
@@ -93,11 +93,12 @@ class BIFSGModel(BaseModel):
         else: 
             raise Exception("geo_level parameter must be 'ZCTA', 'TRACT', 'BLOCK'")
 
-        # self._PROB_ZCTA_GIVEN_RACE = self._get_prob_zcta_given_race()
+        # These data should be changed to load from pickle, too, for consistency, but they are so small that this is low priority.
         self._PROB_RACE_GIVEN_SURNAME = self._get_prob_race_given_surname()
         self._PROB_FIRST_NAME_GIVEN_RACE = self._get_prob_first_name_given_race()
 
-        self._PROB_LOC_GIVEN_RACE = GEO_LEVEL_MAP[geo_level]()
+        # self._PROB_LOC_GIVEN_RACE = GEO_LEVEL_MAP[geo_level]()
+        self._PROB_LOC_GIVEN_RACE = self._load_pickle_file(GEO_LEVEL_MAP[geo_level])
 
     def get_probabilities(self, first_names, surnames, zctas):
         """Obtain a set of BIFSG probabilities for first_name/surname/ZCTA
