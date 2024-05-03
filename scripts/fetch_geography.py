@@ -485,8 +485,8 @@ def main() -> None:
 
     ls_temp = glob(f'{TEMP_DIR}/*.zip')
 
-    # run_zcta(ls_temp)
-    # run_tract(ls_temp)
+    run_zcta(ls_temp)
+    run_tract(ls_temp)
     run_block(ls_temp)
 
     # Remove the raw zipped data files
