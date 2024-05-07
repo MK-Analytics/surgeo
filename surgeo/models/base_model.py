@@ -54,7 +54,14 @@ class BaseModel(object):
             # The application is not frozen
             self._package_root = pathlib.Path(__file__).parents[1]
 
-        self._DATA_DIR = f'{self._package_root}/data/',
+        self._DATA_DIR = f'{self._package_root}/data/'
+    
+    def _parquet_to_df(self, filename:str) -> pd.DataFrame:
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+        
+        testload = pq.read_table(filename)
+        return pa.Table.to_pandas(testload)
 
     def _load_pickle_file(self, filename:str):
         '''
@@ -92,6 +99,18 @@ class BaseModel(object):
         """
 
         import pickle
+        with open(f'{self._package_root}/data/prob_tract_given_race_2010.pkl', 'rb') as f: 
+            prob_race_given_tract = pickle.load(f)
+
+        return prob_race_given_tract
+    
+    def _get_prob_race_given_tract(self): 
+        """
+        Create dataframe of race probs given TRACT (for Geo)
+        This method should be deprecated in favor of load_pickle.       
+        """
+
+        import pickle
         with open(f'{self._package_root}/data/prob_race_given_tract_2010.pkl', 'rb') as f: 
             prob_race_given_tract = pickle.load(f)
 
@@ -108,8 +127,6 @@ class BaseModel(object):
             prob_race_given_tract = pickle.load(f)
 
         return prob_race_given_tract
-
-        return prob_race_given_block
         
     def _get_prob_race_given_tract(self):
         prob_race_given_tract = pd.read_csv(

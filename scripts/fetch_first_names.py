@@ -96,15 +96,24 @@ def main() -> None:
     current_directory = pathlib.Path().cwd()
     project_directory = current_directory.parents[0]
     data_directory    = project_directory / 'surgeo' / 'data'
-    path_harvard      = data_directory / 'prob_race_given_first_name_harvard.csv'
+    path_harvard      = data_directory / 'prob_race_given_first_name_harvard.parquet'
     df_harvard.to_csv(path_harvard)
 
     # CREATING THE REVERSE MAPPING DATA
     column_totals = df_harvard.sum(axis=0).divide(100.0)
     ratio_by_column = df_harvard.divide(column_totals, axis='columns').copy()
     # Prob first name given race
-    rbc_path = data_directory / 'prob_first_name_given_race_harvard.csv'
-    ratio_by_column.to_csv(rbc_path)
+    rbc_path = data_directory / 'prob_first_name_given_race_harvard.parquet'
+    # ratio_by_column.to_csv(rbc_path)
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    table = pa.Table.from_pandas(df_harvard)
+    pq.write_table(table, path_harvard)
+
+    table = pa.Table.from_pandas(ratio_by_column)
+    pq.write_table(table, rbc_path)
 
     print('.... Download complete')
 

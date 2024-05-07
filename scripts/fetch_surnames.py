@@ -113,9 +113,14 @@ df_2010.loc[target_2010] = (
 # Round to 4 digits
 df_2010 = df_2010.round(4)
 
-# Write Data to Module as CSV
+# Write Data to Module as Parquet file
 current_directory = pathlib.Path().cwd()
 project_directory = current_directory.parents[0]
 data_directory    = project_directory / 'surgeo' / 'data'
-path_2010         = data_directory / 'prob_race_given_surname_2010.csv'
-df_2010.to_csv(path_2010)
+path_2010         = data_directory / 'prob_race_given_surname_2010.parquet'
+
+import pyarrow as pa
+import pyarrow.parquet as pq
+
+table = pa.Table.from_pandas(df_2010)
+pq.write_table(table, path_2010)

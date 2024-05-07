@@ -315,7 +315,7 @@ def run_zcta(filepath_list:list[str]) -> None:
         'hispanic'
     ]]
 
-    write_files(ratio_by_column, ratio_by_row, 'prob_zcta_given_race_2010.pkl', 'prob_race_given_zcta_2010.pkl')
+    write_files(ratio_by_column, ratio_by_row, 'prob_zcta_given_race_2010.parquet', 'prob_race_given_zcta_2010.parquet', mode = 'parquet')
 
 
 def run_tract(filepath_list:list[str]) -> None: 
@@ -380,10 +380,94 @@ def run_tract(filepath_list:list[str]) -> None:
 
     ratio_by_row_tract.sort_index().head()
 
-    write_files(ratio_by_column_tract, ratio_by_row_tract, 'prob_tract_given_race_2010.pkl', 'prob_race_given_tract_2010.pkl', mode='pickle')
+    write_files(ratio_by_column_tract, ratio_by_row_tract, 'prob_tract_given_race_2010.parquet', 'prob_race_given_tract_2010.parquet', mode='parquet')
 
+    return None
 
 def run_block(filepath_list:list[str]) -> None: 
+    '''
+    Runs the summary calculations for the census block level data.
+    '''
+
+    fips_codes_by_abbreviation = {
+        "AL": "01", "AK": "02", "AZ": "04", "AR": "05", "CA": "06",
+        "CO": "08", "CT": "09", "DE": "10", "FL": "12", "GA": "13",
+        "HI": "15", "ID": "16", "IL": "17", "IN": "18", "IA": "19",
+        "KS": "20", "KY": "21", "LA": "22", "ME": "23", "MD": "24",
+        "MA": "25", "MI": "26", "MN": "27", "MS": "28", "MO": "29",
+        "MT": "30", "NE": "31", "NV": "32", "NH": "33", "NJ": "34",
+        "NM": "35", "NY": "36", "NC": "37", "ND": "38", "OH": "39",
+        "OK": "40", "OR": "41", "PA": "42", "RI": "44", "SC": "45",
+        "SD": "46", "TN": "47", "TX": "48", "UT": "49", "VT": "50",
+        "VA": "51", "WA": "53", "WV": "54", "WI": "55", "WY": "56",
+        "AS": "60", "GU": "66", "MP": "69", "PR": "72", "VI": "78",
+        "UM": "74", "DC": "11"
+    }
+
+    from tqdm import tqdm
+
+
+    print("Processing data for block-level summary")
+
+    # data_block = []
+    for fp in tqdm(filepath_list):
+        try: 
+            # print(f'Processing {fp} ....')
+
+            state_abbrev2 = fp.split('/')[-1][:2].upper()
+            state_fips = fips_codes_by_abbreviation[state_abbrev2]
+
+            # print(state_abbrev2, state_fips)
+
+            data_block = create_df(fp, geo_level='BLOCK')
+            data_block = data_block.sort_index()
+
+            # Store column totals
+            totals_tract = data_block.sum(axis=1)
+
+            other = data_block['other']
+            data_block['api'] = data_block['asian'] + data_block['pi']
+            data_block = data_block.drop(columns=['other', 'asian', 'pi'])
+            percentages = data_block.divide(totals_tract, axis='rows')
+            apportioned_other = percentages.multiply(other, axis='rows')
+            data_block += apportioned_other
+
+            column_totals = data_block.sum(axis=0)
+            ratio_by_column_block = data_block.divide(column_totals, axis='columns').copy()
+
+            ratio_by_column_block = ratio_by_column_block[[
+                'white',
+                'black',
+                'api',
+                'native',
+                'multiple',
+                'hispanic'
+            ]]
+
+            row_totals = data_block.sum(axis=1)
+            ratio_by_row_block = data_block.divide(row_totals, axis='index').copy()
+
+            ratio_by_row_block = ratio_by_row_block[[
+                'white',
+                'black',
+                'api',
+                'native',
+                'multiple',
+                'hispanic'
+            ]]
+
+            write_files(ratio_by_column_block, ratio_by_row_block, 
+                        f'prob_block_given_race_2010__{state_fips}.parquet', 
+                        f'prob_race_given_block_2010__{state_fips}.parquet', 
+                        mode='parquet')
+
+        except Exception as e:
+            print(e)
+            # print("A problem occurred.")
+
+    return None
+
+def run_block_old(filepath_list:list[str]) -> None: 
     '''
     Runs the summary calculations for the census block level data.
     '''
@@ -439,9 +523,11 @@ def run_block(filepath_list:list[str]) -> None:
         'hispanic'
     ]]
 
-    write_files(ratio_by_column_block, ratio_by_row_block, 'prob_block_given_race_2010.pkl', 'prob_race_given_block_2010.pkl', mode='pickle')
+    write_files(ratio_by_column_block, ratio_by_row_block, 'prob_block_given_race_2010.parquet', 'prob_race_given_block_2010.parquet', mode='parquet')
 
-def write_files(ratio_by_column:pd.DataFrame, ratio_by_row:pd.DataFrame, rbc_filename:str, rbr_filename:str, mode='pickle') -> None:
+    return None
+
+def write_files(ratio_by_column:pd.DataFrame, ratio_by_row:pd.DataFrame, rbc_filename:str, rbr_filename:str, mode='parquet') -> None:
     current_directory = pathlib.Path().cwd()
     project_directory = current_directory.parents[0]
     data_directory    = project_directory / 'surgeo' / 'data'
@@ -465,10 +551,22 @@ def write_files(ratio_by_column:pd.DataFrame, ratio_by_row:pd.DataFrame, rbc_fil
             pickle.dump(ratio_by_column, f)
         with open(rbr_path, 'wb') as f: 
             pickle.dump(ratio_by_row, f)
+    elif mode == 'parquet': 
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        table = pa.Table.from_pandas(ratio_by_column)
+        pq.write_table(table, rbc_path)
+
+        table = pa.Table.from_pandas(ratio_by_row)
+        pq.write_table(table, rbr_path)
+
     else: 
         raise Exception("Mode is not recognized. Choose 'csv' or 'pickle'")
 
-def cleanup_temp_files():
+    return None
+
+def cleanup_temp_files() -> None:
 
     # Delete files
     for path in TEMP_DIR.rglob('*'):
@@ -476,6 +574,8 @@ def cleanup_temp_files():
 
     # Delete dir
     TEMP_DIR.rmdir()
+
+    return None
 
 def main() -> None:
 
@@ -485,8 +585,8 @@ def main() -> None:
 
     ls_temp = glob(f'{TEMP_DIR}/*.zip')
 
-    run_zcta(ls_temp)
-    run_tract(ls_temp)
+    # run_zcta(ls_temp)
+    # run_tract(ls_temp)
     run_block(ls_temp)
 
     # Remove the raw zipped data files
