@@ -20,6 +20,7 @@ Contributors
 ------------
 * `Ryan Willett <https://github.com/rtwillett>`_
 * `John Willis <https://github.com/likealostcause>`_
+* `MK Analytics <https://github.com/MK-Analytics>`_
 * `Adam Weeden <https://github.com/TheCleric>`_
 * `Algorex Health <https://github.com/AlgorexHealth>`_
 * `Theo Naunheim <https://github.com/theonaunheim>`_
