@@ -18,6 +18,8 @@ The documentation for Surgeo may be found here: `<https://surgeo.readthedocs.io/
 
 Contributors
 ------------
+* `Ryan Willett <https://github.com/rtwillett>`_
+* `John Willis <https://github.com/likealostcause>`_
 * `Adam Weeden <https://github.com/TheCleric>`_
 * `Algorex Health <https://github.com/AlgorexHealth>`_
 * `Theo Naunheim <https://github.com/theonaunheim>`_
