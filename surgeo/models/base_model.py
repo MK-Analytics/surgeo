@@ -13,7 +13,7 @@ class BaseModel(object):
     surname-geocode models.
 
     Class creation is greatly simplified by placing most of the
-    funcionality wihtin a single base class and leaving only small areas
+    funcionality within a single base class and leaving only small areas
     of responsibility for the subclass. This base class does the following
     operations:
 
@@ -54,20 +54,79 @@ class BaseModel(object):
             # The application is not frozen
             self._package_root = pathlib.Path(__file__).parents[1]
 
-    def _get_prob_race_given_zcta(self):
-        """Create dataframe of race probs given ZCTA (for Geo)"""
-        prob_race_given_zcta = pd.read_csv(
-            self._package_root / 'data' / 'prob_race_given_zcta_2010.csv',
-            index_col='zcta5',
-            na_values=[''],
-            keep_default_na=False,
-        )
-        # Convert geocode zip codes to 00000-formatted strings
-        prob_race_given_zcta.index = (
-            prob_race_given_zcta.index.astype('str')
-                                .str.zfill(5)
-        )
+        self._DATA_DIR = f'{self._package_root}/data/'
+    
+    def _parquet_to_df(self, filename:str) -> pd.DataFrame:
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+        
+        testload = pq.read_table(filename)
+        return pa.Table.to_pandas(testload)
+
+    def _load_pickle_file(self, filename:str):
+        '''
+        Loads pickle file containing the dataframe objects created by the preprocessing code.
+        '''
+
+        assert filename.endswith('.pkl')
+
+        fn = self._package_root / 'data' / filename
+
+        import pickle
+        with open(f'{self._DATA_DIR}{filename}', 'rb') as f: 
+            prob_race_given_zcta = pickle.load(f)
+
         return prob_race_given_zcta
+
+
+
+    def _get_prob_race_given_zcta(self):
+        """
+        Create dataframe of race probs given ZCTA (for Geo)
+        This method should be deprecated in favor of load_pickle.        
+        """
+
+        import pickle
+        with open(f'{self._package_root}/data/prob_race_given_zcta_2010.pkl', 'rb') as f: 
+            prob_race_given_zcta = pickle.load(f)
+
+        return prob_race_given_zcta
+    
+    def _get_prob_tract_given_race(self): 
+        """
+        Create dataframe of race probs given TRACT (for Geo)
+        This method should be deprecated in favor of load_pickle.       
+        """
+
+        import pickle
+        with open(f'{self._package_root}/data/prob_tract_given_race_2010.pkl', 'rb') as f: 
+            prob_race_given_tract = pickle.load(f)
+
+        return prob_race_given_tract
+    
+    def _get_prob_race_given_tract(self): 
+        """
+        Create dataframe of race probs given TRACT (for Geo)
+        This method should be deprecated in favor of load_pickle.       
+        """
+
+        import pickle
+        with open(f'{self._package_root}/data/prob_race_given_tract_2010.pkl', 'rb') as f: 
+            prob_race_given_tract = pickle.load(f)
+
+        return prob_race_given_tract
+
+    def _get_prob_block_given_race(self): 
+        """
+        Create dataframe of race probs given census BLOCK (for Geo)
+        This method should be deprecated in favor of load_pickle.
+        """
+
+        import pickle
+        with open(f'{self._package_root}/data/prob_race_given_block_2010.pkl', 'rb') as f: 
+            prob_race_given_tract = pickle.load(f)
+
+        return prob_race_given_tract
         
     def _get_prob_race_given_tract(self):
         prob_race_given_tract = pd.read_csv(
@@ -158,6 +217,6 @@ class BaseModel(object):
         return zfilled
 
     def _normalize_tracts(self, geo_target_df: pd.DataFrame) -> pd.DataFrame:
-        """Transform rename the columns to standard into standardized strings"""
+        """Transform rename the columns into standardized strings"""
         converted = geo_target_df.rename(columns={old_col:new_col for old_col, new_col in zip(geo_target_df.columns, ['state','county','tract'])})
         return converted

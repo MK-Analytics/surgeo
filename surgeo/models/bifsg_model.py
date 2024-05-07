@@ -79,11 +79,45 @@ class BIFSGModel(BaseModel):
         `<https://www.tandfonline.com/doi/full/10.1080/2330443X.2018.1427012>`_
 
     """
-    def __init__(self):
+
+    GEO_LEVEL_MAP = {
+            'ZCTA': 'prob_zcta_given_race_2010.parquet',
+            'TRACT': 'prob_tract_given_race_2010.parquet'#,
+            # 'BLOCK': 'prob_block_given_race_2010.pkl'
+        }
+
+    def __init__(self, geo_level = 'ZCTA'):
         super().__init__()
-        self._PROB_ZCTA_GIVEN_RACE = self._get_prob_zcta_given_race()
-        self._PROB_RACE_GIVEN_SURNAME = self._get_prob_race_given_surname()
-        self._PROB_FIRST_NAME_GIVEN_RACE = self._get_prob_first_name_given_race()
+
+        if geo_level in self.GEO_LEVEL_MAP:
+            self._GEO_LEVEL = geo_level
+        else: 
+            raise Exception("geo_level parameter must be 'ZCTA', 'TRACT', 'BLOCK'")
+
+        # These data should be changed to load from pickle, too, for consistency, but they are so small that this is low priority.
+        # self._PROB_RACE_GIVEN_SURNAME = self._get_prob_race_given_surname()
+        # self._PROB_FIRST_NAME_GIVEN_RACE = self._get_prob_first_name_given_race()
+
+        race_given_surname_path = self._package_root / 'data' / 'prob_race_given_surname_2010.parquet'
+        fname_given_race = self._package_root / 'data' / 'prob_first_name_given_race_harvard.parquet'
+
+        self._PROB_RACE_GIVEN_SURNAME = self._parquet_to_df(race_given_surname_path)
+        self._PROB_FIRST_NAME_GIVEN_RACE = self._parquet_to_df(fname_given_race)
+
+        # self._PROB_LOC_GIVEN_RACE = GEO_LEVEL_MAP[geo_level]()
+        # self._PROB_LOC_GIVEN_RACE = self._load_pickle_file(GEO_LEVEL_MAP[geo_level])
+        self.load_loc()
+
+    def load_loc(self):
+
+        if self._GEO_LEVEL in ['ZCTA', 'TRACT']:
+            loc_filepath = self._package_root / 'data' / self.GEO_LEVEL_MAP[self._GEO_LEVEL]
+            self._PROB_LOC_GIVEN_RACE = self._parquet_to_df(loc_filepath)
+        elif self._GEO_LEVEL == 'BLOCK':
+            pass
+        else: 
+            pass
+
 
     def get_probabilities(self, first_names, surnames, zctas):
         """Obtain a set of BIFSG probabilities for first_name/surname/ZCTA
@@ -227,7 +261,7 @@ class BIFSGModel(BaseModel):
         )
         # Merge names to dataframe, which gives probs for each name.
         geocode_probs = normalized_zctas.merge(
-            self._PROB_ZCTA_GIVEN_RACE,
+            self._PROB_LOC_GIVEN_RACE,
             left_on='zcta5',
             right_index=True,
             how='left',
