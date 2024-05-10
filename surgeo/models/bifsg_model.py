@@ -5,6 +5,93 @@ import pandas as pd
 from surgeo.models.base_model import BaseModel
 from surgeo.utility.surgeo_exception import SurgeoException
 
+import sys
+import pathlib
+import tempfile
+
+class BlockLoader:
+
+    def __init__(self): 
+
+        if getattr(sys, 'frozen', False):
+            # The application is frozen
+            freeze_package = pathlib.Path(sys.executable).parents[0]
+            self._package_root = freeze_package / 'Lib' / 'surgeo'
+        else:
+            # The application is not frozen
+            self._package_root = pathlib.Path(__file__).parents[1]
+
+        self._TEMP_DIR = pathlib.Path(tempfile.gettempdir()) / 'surgeo_temp'
+
+        # self._DATA_DIR = f'{self._package_root}/surgeo/data/'
+        self._DATA_DIR = f'{self._package_root}/data/'
+
+    def load_fips(self, fips:list[str]):
+        
+        import pandas as pd
+
+        self.glob_datadir(fips)
+        self.load_files()
+
+        return (self.RACE_GIVEN_BLOCK, self.BLOCK_GIVEN_RACE)
+
+
+    def glob_datadir(self, fips:list[str]) -> None:
+
+        from glob import glob
+
+        path = self._DATA_DIR + '*__*.parquet'
+
+        block_parquet = glob(path)
+        # fips_list = [f.split('__')[-1].split('.')[0] for f in block_parquet]
+        filepaths = [f for f in block_parquet if f.split('__')[-1].split('.')[0] in fips]
+        # list(set([print(f) for f in fips_list if f in list(fips)])
+
+        # for block_fp in block_parquet:
+        #     fp = block_fp.split('__')[-1].split('.')[0]
+        #     if fp in list(fips):
+        #         print(fp)   
+
+        # filepaths = [
+        # [print(f) for f in block_parquet if f.split('__')[-1].split('.')[0] in fips]
+
+        # [print(f) for f in filepaths]
+
+        self._rgb, self._bgr = self.sort_stat_tables(filepaths)
+
+
+        return None
+    
+    def sort_stat_tables(self, filepaths:list[str]) -> tuple[list[str]]: 
+
+        rgb = [f for f in filepaths if 'race_given_block' in f]
+
+        bgr = [f for f in filepaths if 'block_given_race' in f]
+
+        return (rgb, bgr)
+    
+    def load_files(self) -> None: 
+        
+        import pandas as pd
+
+        # [print(i) for i in self._rgb]
+
+        if len(self._rgb) > 0:
+            self.RACE_GIVEN_BLOCK = pd.concat([self.load_parquet(f) for f in self._rgb])
+            self.BLOCK_GIVEN_RACE = pd.concat([self.load_parquet(f) for f in self._bgr])
+        else: 
+            raise Exception('No files found')       
+        return None
+
+
+    def load_parquet(self, filepath:str):
+
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+        
+        testload = pq.read_table(filepath)
+        return pa.Table.to_pandas(testload)
+
 
 class BIFSGModel(BaseModel):
     r"""Subclass for running a Bayesian Improved First Name Surname Geocode model.
@@ -82,8 +169,8 @@ class BIFSGModel(BaseModel):
 
     GEO_LEVEL_MAP = {
             'ZCTA': 'prob_zcta_given_race_2010.parquet',
-            'TRACT': 'prob_tract_given_race_2010.parquet'#,
-            # 'BLOCK': 'prob_block_given_race_2010.pkl'
+            'TRACT': 'prob_tract_given_race_2010.parquet',
+            'BLOCK': ''
         }
 
     def __init__(self, geo_level = 'ZCTA'):
@@ -95,8 +182,6 @@ class BIFSGModel(BaseModel):
             raise Exception("geo_level parameter must be 'ZCTA', 'TRACT', 'BLOCK'")
 
         # These data should be changed to load from pickle, too, for consistency, but they are so small that this is low priority.
-        # self._PROB_RACE_GIVEN_SURNAME = self._get_prob_race_given_surname()
-        # self._PROB_FIRST_NAME_GIVEN_RACE = self._get_prob_first_name_given_race()
 
         race_given_surname_path = self._package_root / 'data' / 'prob_race_given_surname_2010.parquet'
         fname_given_race = self._package_root / 'data' / 'prob_first_name_given_race_harvard.parquet'
@@ -104,8 +189,6 @@ class BIFSGModel(BaseModel):
         self._PROB_RACE_GIVEN_SURNAME = self._parquet_to_df(race_given_surname_path)
         self._PROB_FIRST_NAME_GIVEN_RACE = self._parquet_to_df(fname_given_race)
 
-        # self._PROB_LOC_GIVEN_RACE = GEO_LEVEL_MAP[geo_level]()
-        # self._PROB_LOC_GIVEN_RACE = self._load_pickle_file(GEO_LEVEL_MAP[geo_level])
         self.load_loc()
 
     def load_loc(self):
@@ -113,11 +196,23 @@ class BIFSGModel(BaseModel):
         if self._GEO_LEVEL in ['ZCTA', 'TRACT']:
             loc_filepath = self._package_root / 'data' / self.GEO_LEVEL_MAP[self._GEO_LEVEL]
             self._PROB_LOC_GIVEN_RACE = self._parquet_to_df(loc_filepath)
-        elif self._GEO_LEVEL == 'BLOCK':
-            pass
+        elif self._GEO_LEVEL in ['BLOCK']:
+            '''
+            Block level data is far larger than the other summary level datasets. Because of this, we will load the data on-the-fly
+            when called by the .get_probabilities method. It will check the first 2 digits of all block ids, which contains the state
+            FIPS code and then load the appropriate data partitions of the block data.
+            '''
+            pass 
         else: 
-            pass
+            raise Exception("geo_level must be either 'ZCTA', 'TRACT', or 'BLOCK'")
+        
+    def _block_load(self, fips:list[str]) -> None:
+        state_fips = list(set([i[:2] for i in list(set(fips))]))
 
+        bloader = BlockLoader()
+        _, self._PROB_LOC_GIVEN_RACE = bloader.load_fips(state_fips)
+
+        return None
 
     def get_probabilities(self, first_names, surnames, zctas):
         """Obtain a set of BIFSG probabilities for first_name/surname/ZCTA
@@ -147,6 +242,10 @@ class BIFSGModel(BaseModel):
             Dataframe of BIFSG probability results
 
         """
+
+        if self._GEO_LEVEL == 'BLOCK':
+
+            self._block_load(zctas)
 
         # Check inputs
         self._check_inputs(first_names, surnames, zctas)

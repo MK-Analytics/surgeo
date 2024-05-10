@@ -78,9 +78,17 @@ class BaseModel(object):
 
         return prob_race_given_zcta
 
-
-
     def _get_prob_race_given_zcta(self):
+        """
+        Create dataframe of race probs given ZCTA (for Geo)
+        This method should be deprecated in favor of load_pickle.        
+        """
+
+        prob_race_given_zcta = self._parquet_to_df(f'{self._package_root}/data/prob_race_given_zcta_2010.pkl')
+
+        return prob_race_given_zcta
+
+    def __get_prob_race_given_zcta(self):
         """
         Create dataframe of race probs given ZCTA (for Geo)
         This method should be deprecated in favor of load_pickle.        
@@ -153,16 +161,16 @@ class BaseModel(object):
         )
         return prob_zcta_given_race
 
-    def _get_prob_race_given_surname(self):
-        """Create dataframe of race probabilities given surnames (for Sur)"""
-        # Create surname df (beware ... some NA values like "NAN" are names)
-        prob_race_given_surname = pd.read_csv(
-            self._package_root / 'data' / 'prob_race_given_surname_2010.csv',
-            index_col='name',
-            na_values=[''],
-            keep_default_na=False,
-        )
-        return prob_race_given_surname
+    # def _get_prob_race_given_surname(self):
+    #     """Create dataframe of race probabilities given surnames (for Sur)"""
+    #     # Create surname df (beware ... some NA values like "NAN" are names)
+    #     prob_race_given_surname = pd.read_csv(
+    #         self._package_root / 'data' / 'prob_race_given_surname_2010.csv',
+    #         index_col='name',
+    #         na_values=[''],
+    #         keep_default_na=False,
+    #     )
+    #     return prob_race_given_surname
 
     def _get_prob_race_given_first_name(self):
         """Create dataframe of race probabilities given first names (for First)"""
@@ -175,15 +183,15 @@ class BaseModel(object):
         )
         return prob_race_given_first_name
 
-    def _get_prob_first_name_given_race(self):
-        """Create dataframe of first name ratios given a race (for BIFSG)"""
-        prob_first_name_given_race = pd.read_csv(
-            self._package_root / 'data' / 'prob_first_name_given_race_harvard.csv',
-            index_col='name',
-            na_values=[''],
-            keep_default_na=False,
-        )
-        return prob_first_name_given_race
+    # def _get_prob_first_name_given_race(self):
+    #     """Create dataframe of first name ratios given a race (for BIFSG)"""
+    #     prob_first_name_given_race = pd.read_csv(
+    #         self._package_root / 'data' / 'prob_first_name_given_race_harvard.csv',
+    #         index_col='name',
+    #         na_values=[''],
+    #         keep_default_na=False,
+    #     )
+    #     return prob_first_name_given_race
 
     def _normalize_names(self, names: pd.Series) -> pd.Series:
         """Take names and run a normalization routine"""
