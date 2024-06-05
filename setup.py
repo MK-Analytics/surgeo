@@ -14,16 +14,15 @@ setup(
         created by Ioan Voicu.
 
     """,
-    author='Theo Naunheim',
-    author_email='theonaunheim@gmail.com',
+    author='Merry McCarron',
+    author_email='merry@mk-analytics.com',
     packages=[
         'surgeo',
-        'surgeo.app',
         'surgeo.models',
         'surgeo.utility',
     ],
     license='MIT',
-    url='https://github.com/theonaunheim/surgeo',
+    url='https://github.com/MK-Analytics/surgeo',
     keywords=[
         'bisg',
         'disparate',

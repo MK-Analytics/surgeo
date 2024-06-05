@@ -1,3 +1,12 @@
+v.1.1.3:
+========
+-Forked to MK Analytics repo
+-Updated the code and fixed all errors with the software to the current Python and package versions
+-Implemented tract-level predictions, which seemed incomplete in implementation
+-Implemented block-level predictions
+-Partitioned the block level data (because it is much larger) so speed up recall time. Now it only loads the data for the states in which block ID lie
+-Removed all of the extra functionality - the CLI, GUI, and EXE portions of the repo - in order to consolidate around how Surgeo professes to be best used: as a module
+
 v.1.1.2:
 ========
 -Remove duplicate tract functions from base_model.py and surgeo_model.py
